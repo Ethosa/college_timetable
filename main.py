@@ -20,6 +20,25 @@ college = CollegeAPI()
 image_worker = Img()
 
 
+async def chat_not_installed(msg: Message):
+    await msg.answer("Необходимо настроить текущую группу.\nИспользуйте комманду /группа ГРУППА")
+
+
+@bot.on.message(RegexRule(r"/?(help|commands|команды|помощь)"))
+async def help_message(msg: Message):
+    await msg.answer(
+        "Вот, что я умею:\n"
+        "◾ помощь - сообщение с доступными командами;\n"
+        "◾ группа <Название группы> - установка группы для расписания;\n"
+        "◾ расписание - расписание на текущую неделю;\n"
+        "◾ след неделя - расписание на следующую неделю;\n"
+        "◾ фронт/бэк <HEX цвет> - изменение цвета фона и текста для расписания;\n"
+        "◾ сегодня/завтра/день недели - расписание на день.\n\n"
+        "❗ вместо <ДАННЫЕ> пишите свои данные без <>\n"
+        "❗ пример HEX цвета: #212121 #FEFEFE #DD75DD"
+    )
+
+
 @bot.on.message(RegexRule(r"/?(группа|group)\s+\w{1,3}([\s\.\-]\d{2,3})+?"))
 async def change_group(msg: Message):
     """Changes current chat group"""
@@ -52,7 +71,7 @@ async def get_timetable(msg: Message):
     """Sends actual timetable if available"""
     chat = db.get_or_add_chat(msg.peer_id)
     if chat.title == '':
-        await msg.answer("Необходимо настроить текущую группу.\nИспользуйте комманду /группа ГРУППА")
+        await chat_not_installed(msg)
         return
     timetable = college.get_timetable(chat.group_id)
     name = token_hex(16) + '.png'
@@ -62,12 +81,12 @@ async def get_timetable(msg: Message):
     await msg.answer(f"Расписание на текущую неделю:", attachment=photo)
 
 
-@bot.on.message(RegexRule(r"/?(след неделя|next week)"))
+@bot.on.message(RegexRule(r"/?(след\s+неделя|следующая\s+неделя|next\s+week)"))
 async def get_next_week_timetable(msg: Message):
     """Sends actual timetable for the next week if available"""
     chat = db.get_or_add_chat(msg.peer_id)
     if chat.title == '':
-        await msg.answer("Необходимо настроить текущую группу.\nИспользуйте комманду /группа ГРУППА")
+        await chat_not_installed(msg)
         return
     timetable = college.get_timetable(chat.group_id)
     timetable = college.get_timetable(chat.group_id, int(timetable['week_number'])+1)
@@ -76,6 +95,46 @@ async def get_next_week_timetable(msg: Message):
     photo = await PhotoMessageUploader(api=api).upload(name)
     remove(name)
     await msg.answer(f"Расписание на следующую неделю:", attachment=photo)
+
+
+@bot.on.message(
+    RegexRule(
+        r"/?(сегодня|today|завтра|tomorrow|monday|tuesday|wendesday|thursday|friday|saturday|"
+        r"понедельник|вторник|среда|четверг|пятница|суббота)")
+)
+async def get_day_timetable(msg: Message):
+    """Sends actual timetable for day"""
+    text = msg.text.lstrip('/').lower()
+    chat = db.get_or_add_chat(msg.peer_id)
+    if chat.title == '':
+        await chat_not_installed(msg)
+        return
+    name = token_hex(16) + '.png'
+    day = None
+    tomorrow = False
+    match text:
+        case 'tomorrow' | 'завтра':
+            tomorrow = True
+        case 'monday' | 'понедельник':
+            day = 0
+        case 'tuesday' | 'вторник':
+            day = 1
+        case 'wednesday' | 'среда':
+            day = 2
+        case 'thursday' | 'четверг':
+            day = 3
+        case 'friday' | 'пятница':
+            day = 4
+        case 'saturday' | 'суббота':
+            day = 5
+    image_worker.from_day(
+        name, college.get_day(chat.group_id, day, tomorrow),
+        chat.timetable_back,
+        chat.timetable_fore
+    )
+    photo = await PhotoMessageUploader(api=api).upload(name)
+    remove(name)
+    await msg.answer(f"Расписание на {text}:", attachment=photo)
 
 
 if __name__ == '__main__':

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """Provides CollegeAPI class"""
+from datetime import datetime
 from re import match, sub, IGNORECASE
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, NoReturn
 
 from requests import Session
 
@@ -15,7 +16,7 @@ class CollegeAPI:
         self.courses = None
         self._init()
 
-    def _init(self):
+    def _init(self) -> NoReturn:
         self.courses = self.get_courses()
 
     def get_courses(self) -> List[Dict[str, Any]]:
@@ -35,6 +36,34 @@ class CollegeAPI:
         if week is None:
             return self.client.get(f'{CollegeAPI.URL}timetable/{group_id}').json()
         return self.client.get(f'{CollegeAPI.URL}timetable/{group_id}/{week}').json()
+
+    def get_day(
+            self,
+            group_id: int,
+            day: Optional[int] = None,
+            tomorrow: Optional[bool] = False
+    ) -> Dict[str, Any]:
+        """Fetches current day timetable
+
+        :param group_id: group unique ID
+        :param day: day number
+        :param tomorrow: needs tomorrow day
+        """
+        timetable = self.get_timetable(group_id)
+        if day is None:
+            today = datetime.now().weekday()
+            if tomorrow:
+                # Get next date
+                if today == 5:
+                    # Next week, because 6 is Sunday
+                    today = 0
+                    timetable = self.get_timetable(group_id, int(timetable['week_number'])+1)
+                else:
+                    today += 1
+                return timetable['days'][today]
+            return timetable['days'][today]
+        elif 0 <= day <= 6:
+            return timetable['days'][day]
 
     def get_group(self, pattern: str) -> Dict[str, Any]:
         """Returns True, if group exists

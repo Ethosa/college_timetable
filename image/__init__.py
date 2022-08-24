@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from typing import Dict, Any, List
+from typing import Dict, Any, List, NoReturn
 from textwrap import wrap
 
 from PIL import Image, ImageDraw, ImageFont
@@ -85,13 +85,69 @@ class Img:
             offset += w3
         return max_y
 
+    def from_day(
+            self,
+            name: str,
+            day: Dict[str, Any],
+            background: str,
+            foreground: str
+    ) -> NoReturn:
+        """Creates an image from day
+
+        :param name: file name
+        :param day: day data
+        :param background: background color
+        :param foreground: foreground color
+        :return:
+        """
+        w, h = 512, 600
+        y = 16
+        img = Image.new('RGBA', (w, h), background)
+        draw = ImageDraw.Draw(img, 'RGBA')
+
+        # Draw day title
+        _, _, width, height = draw.textbbox((0, 0), day['title'], self.title_font)
+        draw.text((w/2 - width/2, y), day['title'], foreground, self.title_font)
+        y += height + 32
+
+        # Draw lessons
+        for lesson in day['lessons']:
+            draw.line([(8, y), (w-8, y)], foreground, 1)
+            y += 4
+            draw.text((4, y + 8), lesson['time'][0], foreground, self.title_font)
+            draw.multiline_text(
+                (36, y), lesson['time'][1] + '\n' + lesson['time'][2],
+                foreground,
+                self.font
+            )
+            # Draw lesson title
+            lesson_title = '\n'.join(wrap(lesson['title'], 30))
+            box = draw.multiline_textbbox((0, 0), lesson_title, self.font)
+            h = box[3] if box[3] > 0 else 32
+            # Draw lesson teacher and classroom
+            draw.multiline_text((96, y), lesson_title, foreground, self.font)
+            teacher_classroom = lesson['teacher'] + ', ' + lesson['classroom']
+            length = draw.textlength(teacher_classroom, self.small_font)
+            draw.text(
+                ((w - 96) / 2 - length / 2 + 96, y + h),
+                teacher_classroom,
+                foreground,
+                self.small_font
+            )
+            y += 64
+
+        # Save and clear
+        img.save(name)
+        del img
+        del draw
+
     def from_timetable(
             self,
             name: str,
             timetable: Dict[str, Any],
             background: str,
             foreground: str
-    ):
+    ) -> NoReturn:
         """Creates an image from timetable
 
         :param name: file name
@@ -115,4 +171,7 @@ class Img:
         y = max_y + 64
         self._draw_days(timetable['days'][3:], draw, w, y, foreground)
 
+        # Save and clear
         img.save(name)
+        del img
+        del draw
