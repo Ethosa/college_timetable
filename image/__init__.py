@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from typing import Dict, Any, List, NoReturn
+from random import choice
+from typing import Dict, Any, List, NoReturn, Optional, Union, Tuple
 from textwrap import wrap
 
 from PIL import Image, ImageDraw, ImageFont
@@ -12,7 +13,10 @@ class Img:
             encoding: str = 'utf-8',
             xl_size: int = 32,
             lg_size: int = 24,
-            sm_size: int = 16
+            sm_size: int = 16,
+            xxxl_size: int = 64,
+            xxl_size: int = 42,
+            dm_data: Optional[List[Union[str, Tuple[str, str]]]] = None
     ):
         """Initializes class and creates fonts
 
@@ -21,10 +25,16 @@ class Img:
         :param xl_size: title text size
         :param lg_size: text size
         :param sm_size: small text size
+        :param xxxl_size: extra large text size
+        :param xxl_size: large text size
+        :param dm_data: data for dm
         """
         self.title_font = ImageFont.truetype(font_path, xl_size, encoding=encoding)
         self.font = ImageFont.truetype(font_path, lg_size, encoding=encoding)
         self.small_font = ImageFont.truetype(font_path, sm_size, encoding=encoding)
+        self.dm_title_font = ImageFont.truetype(font_path, xxxl_size, encoding=encoding)
+        self.dm_font = ImageFont.truetype(font_path, xxl_size, encoding=encoding)
+        self.dm_data = dm_data
 
     def _draw_days(
             self,
@@ -175,3 +185,53 @@ class Img:
         img.save(name)
         del img
         del draw
+
+    def create_dm(
+            self,
+            images: List[str],
+            title: Optional[str] = '',
+            text: Optional[str] = ''
+    ) -> NoReturn:
+        """Creates dm image
+
+        :param images: list of image paths
+        :param title: title text
+        :param text: subtitle text
+        """
+        is_random = False
+        if not title and not text:
+            is_random = True
+            if not self.dm_data:
+                return
+        w, h = 1024, 1150
+        for file in images:
+            if is_random:
+                result = choice(self.dm_data)
+                if isinstance(result, str):
+                    title, text = result, ''
+                else:
+                    title, text = result
+            src = Image.open(file)
+            dst = Image.new('RGBA', (w, h), "black")
+            draw = ImageDraw.Draw(dst, 'RGBA')
+
+            # Draw box
+            draw.rectangle((62, 62, 961, 961), "white")
+
+            # Paste source to destination
+            src = src.resize((896, 896))
+            dst.paste(src, (64, 64))
+
+            # Draw first line
+            _, _, width, height = draw.textbbox((0, 0), title, self.dm_title_font)
+            draw.text((w/2 - width/2, 968), title, "white", self.dm_title_font)
+
+            # Draw second line
+            _, _, width, height = draw.textbbox((0, 0), text, self.dm_font)
+            draw.text((w/2 - width/2, 1048), text, "white", self.dm_font)
+
+            # Clear
+            dst.save(file)
+            del src
+            del dst
+            del draw

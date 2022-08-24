@@ -2,7 +2,7 @@
 """Provides CollegeAPI class"""
 from datetime import datetime
 from re import match, sub, IGNORECASE
-from typing import List, Dict, Any, Optional, NoReturn
+from typing import List, Dict, Any, Optional, NoReturn, Literal
 
 from requests import Session
 
@@ -40,7 +40,7 @@ class CollegeAPI:
     def get_day(
             self,
             group_id: int,
-            day: Optional[int] = None,
+            day: Optional[Literal[0, 1, 2, 3, 4, 5]] = None,
             tomorrow: Optional[bool] = False
     ) -> Dict[str, Any]:
         """Fetches current day timetable

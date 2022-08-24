@@ -3,6 +3,8 @@ from os import remove
 from secrets import token_hex
 
 from re import findall
+
+import requests
 from vkbottle import PhotoMessageUploader
 from vkbottle.api import API
 from vkbottle.bot import Bot, Message
@@ -11,21 +13,36 @@ from vkbottle.dispatch.rules.base import RegexRule
 from college_api import CollegeAPI
 from db import DB
 from image import Img
-from config import GROUP_TOKEN
+from config import GROUP_TOKEN, DM_DATA
 
 api = API(token=GROUP_TOKEN)
 bot = Bot(api=api)
+uploader = PhotoMessageUploader(api=api)
 db = DB()
 college = CollegeAPI()
-image_worker = Img()
+image_worker = Img(dm_data=DM_DATA)
 
 
 async def chat_not_installed(msg: Message):
     await msg.answer("Необходимо настроить текущую группу.\nИспользуйте комманду /группа ГРУППА")
 
 
+def get_attachments_photo(msg: Message):
+    urls = []
+    for attachment in msg.attachments:
+        if attachment.type.value == "photo":
+            w, url = 0, None
+            for size in attachment.photo.sizes:
+                if size.width > w:
+                    w, url = size.width, size.url
+            if url is not None:
+                urls.append(url)
+    return urls
+
+
 @bot.on.message(RegexRule(r"/?(help|commands|команды|помощь)"))
 async def help_message(msg: Message):
+    """Sends help message"""
     await msg.answer(
         "Вот, что я умею:\n"
         "◾ помощь - сообщение с доступными командами;\n"
@@ -33,6 +50,7 @@ async def help_message(msg: Message):
         "◾ расписание - расписание на текущую неделю;\n"
         "◾ след неделя - расписание на следующую неделю;\n"
         "◾ фронт/бэк <HEX цвет> - изменение цвета фона и текста для расписания;\n"
+        "◾ дм <верхний текст><с новой строки нижний текст> - генерирует демотиватор;\n"
         "◾ сегодня/завтра/день недели - расписание на день.\n\n"
         "❗ вместо <ДАННЫЕ> пишите свои данные без <>\n"
         "❗ пример HEX цвета: #212121 #FEFEFE #DD75DD"
@@ -132,9 +150,38 @@ async def get_day_timetable(msg: Message):
         chat.timetable_back,
         chat.timetable_fore
     )
-    photo = await PhotoMessageUploader(api=api).upload(name)
+    photo = await uploader.upload(name)
     remove(name)
     await msg.answer(f"Расписание на {text}:", attachment=photo)
+
+
+@bot.on.message(RegexRule(r"/?(dm|дм)(\s+([^\n]+)\s+([^\n]+))?"))
+async def dm(msg: Message):
+    urls = get_attachments_photo(msg)
+    if not urls and msg.reply_message:
+        urls = get_attachments_photo(msg.reply_message)
+    if not urls and msg.fwd_messages:
+        for fwd in msg.fwd_messages:
+            urls += get_attachments_photo(fwd)
+    if not urls:
+        await msg.answer(f"Вы должны отправить картинку.")
+        return
+    images = []
+    for url in urls:
+        name = token_hex(24) + '.png'
+        with open(name, 'wb') as f:
+            f.write(requests.get(url).content)
+        images.append(name)
+    _, _, title, text = findall(r"/?(dm|дм)(\s+([^\n]+)\s+([^\n]+))?", msg.text)[0]
+    if not title and not text:
+        image_worker.create_dm(images)
+    else:
+        image_worker.create_dm(images, title, text)
+    photos = []
+    for image in images:
+        photos.append(await uploader.upload(image))
+        remove(image)
+    await msg.answer(attachment=','.join(photos))
 
 
 if __name__ == '__main__':
