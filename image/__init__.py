@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 class Img:
     def __init__(
             self,
-            font_path: str = 'Symbola.ttf',
+            font_path: str = 'NotoSans-Regular.ttf',
             encoding: str = 'utf-8',
             xl_size: int = 32,
             lg_size: int = 24,
