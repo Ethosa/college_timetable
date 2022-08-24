@@ -22,6 +22,7 @@ image_worker = Img()
 
 @bot.on.message(RegexRule(r"/?(группа|group)\s+\w{1,3}([\s\.\-]\d{2,3})+?"))
 async def change_group(msg: Message):
+    """Changes current chat group"""
     chat = db.get_or_add_chat(msg.peer_id)
     group = college.to_group_name(findall(r'(\w{1,3}([\s\.\-]\d{1,3})+)', msg.text)[0][0])
     group_data = college.get_group(group)
@@ -32,8 +33,23 @@ async def change_group(msg: Message):
     await msg.answer(f"Группа {group_data['title']} успешно установлена в этом чате✔")
 
 
+@bot.on.message(RegexRule(r"/?(fore|back|фронт|бек|бэк)\s+#[0-9a-fA-F]{6}"))
+async def change_timetable_color(msg: Message):
+    """Changes current chat timetable foreground or background"""
+    chat = db.get_or_add_chat(msg.peer_id)
+    word, color = findall(r"/?(fore|back|фронт|бек|бэк)\s+(#[0-9a-fA-F]{6})", msg.text)[0]
+    match word:
+        case "fore" | "фронт":
+            db.change_chat_tt_fore(chat.chat_id, color)
+            await msg.answer(f"Цвет текста в расписании успешно изменен✔")
+        case "back" | "бэк" | "бек":
+            db.change_chat_tt_back(chat.chat_id, color)
+            await msg.answer(f"Фон расписания успешно изменен✔")
+
+
 @bot.on.message(RegexRule(r"/?(расписание|timetable)"))
 async def get_timetable(msg: Message):
+    """Sends actual timetable if available"""
     chat = db.get_or_add_chat(msg.peer_id)
     if chat.title == '':
         await msg.answer("Необходимо настроить текущую группу.\nИспользуйте комманду /группа ГРУППА")
@@ -48,6 +64,7 @@ async def get_timetable(msg: Message):
 
 @bot.on.message(RegexRule(r"/?(след неделя|next week)"))
 async def get_next_week_timetable(msg: Message):
+    """Sends actual timetable for the next week if available"""
     chat = db.get_or_add_chat(msg.peer_id)
     if chat.title == '':
         await msg.answer("Необходимо настроить текущую группу.\nИспользуйте комманду /группа ГРУППА")

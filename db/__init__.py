@@ -37,3 +37,19 @@ class DB:
             (title, group_id, chat_id)
         )
         self.db.commit()
+
+    def change_chat_tt_fore(self, chat_id: int, color: str):
+        chat = self.get_or_add_chat(chat_id)
+        self.cursor.execute(
+            'UPDATE chat SET tt_fore = ? WHERE id = ?',
+            (color, chat_id)
+        )
+        self.db.commit()
+
+    def change_chat_tt_back(self, chat_id: int, color: str):
+        chat = self.get_or_add_chat(chat_id)
+        self.cursor.execute(
+            'UPDATE chat SET tt_back = ? WHERE id = ?',
+            (color, chat_id)
+        )
+        self.db.commit()

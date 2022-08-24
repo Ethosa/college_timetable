@@ -6,10 +6,25 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 class Img:
-    def __init__(self):
-        self.title_font = ImageFont.truetype('Symbola.ttf', 32, encoding='UTF-8')
-        self.font = ImageFont.truetype('Symbola.ttf', 24, encoding='UTF-8')
-        self.small_font = ImageFont.truetype('Symbola.ttf', 16, encoding='UTF-8')
+    def __init__(
+            self,
+            font_path: str = 'Symbola.ttf',
+            encoding: str = 'utf-8',
+            xl_size: int = 32,
+            lg_size: int = 24,
+            sm_size: int = 16
+    ):
+        """Initializes class and creates fonts
+
+        :param font_path: path to font file
+        :param encoding: font encoding
+        :param xl_size: title text size
+        :param lg_size: text size
+        :param sm_size: small text size
+        """
+        self.title_font = ImageFont.truetype(font_path, xl_size, encoding=encoding)
+        self.font = ImageFont.truetype(font_path, lg_size, encoding=encoding)
+        self.small_font = ImageFont.truetype(font_path, sm_size, encoding=encoding)
 
     def _draw_days(
             self,
@@ -19,6 +34,15 @@ class Img:
             y_offset: int,
             foreground: str
     ) -> int:
+        """Draws list of days
+
+        :param days: days data
+        :param draw: ImageDraw instance
+        :param w: day width
+        :param y_offset: y offset
+        :param foreground: foreground color
+        :return: maximum y from days
+        """
         offset = 0
         w3 = w / 3
         max_y = y_offset
@@ -68,16 +92,27 @@ class Img:
             background: str,
             foreground: str
     ):
+        """Creates an image from timetable
+
+        :param name: file name
+        :param timetable: timetable data
+        :param background: background color
+        :param foreground: foreground color
+        """
         w, h = 1024, 900
+        y = 32
         img = Image.new('RGBA', (w, h), background)
         draw = ImageDraw.Draw(img, 'RGBA')
+
+        # Draw week title
         week_title = f'{timetable["week_number"]} неделя'
         length = draw.textlength(week_title, self.title_font)
-        draw.text((w / 2 - length / 2, 32), week_title, foreground, self.title_font)
+        draw.text((w / 2 - length / 2, y), week_title, foreground, self.title_font)
 
-        y_offset = 128  # offset from week title
-        max_y = self._draw_days(timetable['days'][:3], draw, w, y_offset, foreground)
-        y_offset = max_y + 64
-        self._draw_days(timetable['days'][3:], draw, w, y_offset, foreground)
+        # Draw week days
+        y += 96  # offset from week title
+        max_y = self._draw_days(timetable['days'][:3], draw, w, y, foreground)
+        y = max_y + 64
+        self._draw_days(timetable['days'][3:], draw, w, y, foreground)
 
         img.save(name)
