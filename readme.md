@@ -6,12 +6,13 @@
 </div>
 
 ## Install
-First, change `config.py` file
-
 ```bash
 git clone https://github.com/ethosa/college_timetable
 cd college_timetable
 pip install requrements.txt
+```
+change `config.py` file
+```bash
 python main.py
 ```
 
