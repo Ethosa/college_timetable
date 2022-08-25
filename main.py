@@ -28,6 +28,11 @@ async def chat_not_installed(msg: Message):
 
 
 def get_attachments_photo(msg: Message):
+    """Gets attachments from message
+
+    :param msg: message object
+    :return: list of photo URLs
+    """
     urls = []
     for attachment in msg.attachments:
         if attachment.type.value == "photo":
@@ -117,7 +122,7 @@ async def get_next_week_timetable(msg: Message):
 
 @bot.on.message(
     RegexRule(
-        r"/?(сегодня|today|завтра|tomorrow|monday|tuesday|wendesday|thursday|friday|saturday|"
+        r"/?(сегодня|today|завтра|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|"
         r"понедельник|вторник|среда|четверг|пятница|суббота)")
 )
 async def get_day_timetable(msg: Message):
@@ -127,8 +132,11 @@ async def get_day_timetable(msg: Message):
     if chat.title == '':
         await chat_not_installed(msg)
         return
+    # Generate random file name
     name = token_hex(16) + '.png'
+    # if day is None - day is current
     day = None
+    # works when day is None
     tomorrow = False
     match text:
         case 'tomorrow' | 'завтра':
@@ -157,26 +165,32 @@ async def get_day_timetable(msg: Message):
 
 @bot.on.message(RegexRule(r"/?(dm|дм)(\s+([^\n]+)\s+([^\n]+))?"))
 async def dm(msg: Message):
+    """Sends demotivator"""
+    # Get attachments from message
     urls = get_attachments_photo(msg)
     if not urls and msg.reply_message:
         urls = get_attachments_photo(msg.reply_message)
     if not urls and msg.fwd_messages:
         for fwd in msg.fwd_messages:
             urls += get_attachments_photo(fwd)
+    # Check urls
     if not urls:
         await msg.answer(f"Вы должны отправить картинку.")
         return
+    # Download images
     images = []
     for url in urls:
         name = token_hex(24) + '.png'
         with open(name, 'wb') as f:
             f.write(requests.get(url).content)
         images.append(name)
+    # Translate images to demotivators
     _, _, title, text = findall(r"/?(dm|дм)(\s+([^\n]+)\s+([^\n]+))?", msg.text)[0]
     if not title and not text:
         image_worker.create_dm(images)
     else:
         image_worker.create_dm(images, title, text)
+    # Upload and remove images
     photos = []
     for image in images:
         photos.append(await uploader.upload(image))

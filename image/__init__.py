@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 class Img:
+    """Provides working with pillow"""
     def __init__(
             self,
             font_path: str = 'NotoSans-Regular.ttf',
