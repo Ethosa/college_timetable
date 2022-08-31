@@ -17,6 +17,7 @@ from config import GROUP_TOKEN, DM_DATA
 
 api = API(token=GROUP_TOKEN)
 bot = Bot(api=api)
+bot.labeler.vbml_ignore_case = True
 uploader = PhotoMessageUploader(api=api)
 db = DB()
 college = CollegeAPI()

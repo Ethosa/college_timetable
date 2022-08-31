@@ -13,7 +13,7 @@ class Img:
             font_path: str = 'NotoSans-Regular.ttf',
             encoding: str = 'utf-8',
             xl_size: int = 32,
-            lg_size: int = 24,
+            lg_size: int = 22,
             sm_size: int = 16,
             xxxl_size: int = 64,
             xxl_size: int = 42,
@@ -30,11 +30,13 @@ class Img:
         :param xxl_size: large text size
         :param dm_data: data for dm
         """
-        self.title_font = ImageFont.truetype(font_path, xl_size, encoding=encoding)
-        self.font = ImageFont.truetype(font_path, lg_size, encoding=encoding)
-        self.small_font = ImageFont.truetype(font_path, sm_size, encoding=encoding)
-        self.dm_title_font = ImageFont.truetype(font_path, xxxl_size, encoding=encoding)
-        self.dm_font = ImageFont.truetype(font_path, xxl_size, encoding=encoding)
+        ttf = lambda size: ImageFont.truetype(font_path, size, encoding=encoding)
+        self.title_font = ttf(xl_size)
+        self.font_mini = ttf(int(xl_size * 0.75))
+        self.font = ttf(lg_size)
+        self.small_font = ttf(sm_size)
+        self.dm_title_font = ttf(xxxl_size)
+        self.dm_font = ttf(xxl_size)
         self.dm_data = dm_data
 
     def _draw_days(
@@ -70,27 +72,35 @@ class Img:
                 draw.line([(offset + 8, y), (offset + w3 - 8, y)], foreground, 1)
                 y += 4
                 # Draw lesson time
+                # Lesson number
+                x = offset + draw.textlength(lesson['time'][0], self.title_font)
                 draw.text((offset + 4, y + 8), lesson['time'][0], foreground, self.title_font)
+                # Lesson time from and time to
+                x += 16
                 draw.multiline_text(
-                    (offset + 36, y), lesson['time'][1] + '\n' + lesson['time'][2],
+                    (x, y), lesson['time'][1] + '\n' + lesson['time'][2],
                     foreground,
-                    self.font
+                    self.font_mini
                 )
                 # Draw lesson title
-                lesson_title = '\n'.join(wrap(lesson['title'], 30))
-                box = draw.multiline_textbbox((0, 0), lesson_title, self.font)
-                h = box[3] if box[3] > 0 else 32
+                lesson_title = '\n'.join(wrap(lesson['title'], 22))
+                title_font = self.font_mini
+                _, _, _w, _h = draw.multiline_textbbox((0, 0), lesson['time'][1], self.font_mini)
+                x += _w
+                _, _, _w, _h = draw.multiline_textbbox((0, 0), lesson_title, self.font_mini)
+                if _h == 0:
+                    _h = 32
+                draw.multiline_text(
+                    ((x + ((w3 - (x - offset)) / 2 - _w / 2)), y),
+                    lesson_title, foreground, title_font, align='center')
                 # Draw lesson teacher and classroom
-                draw.multiline_text((offset + 96, y), lesson_title, foreground, self.font)
                 teacher_classroom = lesson['teacher'] + ', ' + lesson['classroom']
                 length = draw.textlength(teacher_classroom, self.small_font)
                 draw.text(
-                    ((w3 - 96) / 2 - length / 2 + offset + 96, y + h),
-                    teacher_classroom,
-                    foreground,
-                    self.small_font
+                    ((w3 - length + offset - 8), y + _h),
+                    teacher_classroom, foreground, self.small_font
                 )
-                y += 64
+                y += _h + 36
                 if max_y < y:
                     max_y = y
             offset += w3
@@ -123,29 +133,39 @@ class Img:
 
         # Draw lessons
         for lesson in day['lessons']:
-            draw.line([(8, y), (w-8, y)], foreground, 1)
+            # Draw lesson <hr>
+            draw.line([(8, y), (w - 8, y)], foreground, 1)
             y += 4
+            # Draw lesson time
+            # Lesson number
+            x = draw.textlength(lesson['time'][0], self.title_font)
             draw.text((4, y + 8), lesson['time'][0], foreground, self.title_font)
+            # Lesson time from and time to
+            x += 16
             draw.multiline_text(
-                (36, y), lesson['time'][1] + '\n' + lesson['time'][2],
+                (x, y), lesson['time'][1] + '\n' + lesson['time'][2],
                 foreground,
-                self.font
+                self.font_mini
             )
             # Draw lesson title
-            lesson_title = '\n'.join(wrap(lesson['title'], 30))
-            box = draw.multiline_textbbox((0, 0), lesson_title, self.font)
-            h = box[3] if box[3] > 0 else 32
+            lesson_title = '\n'.join(wrap(lesson['title'], 22))
+            title_font = self.font_mini
+            _, _, _w, _h = draw.multiline_textbbox((0, 0), lesson['time'][1], self.font_mini)
+            x += _w
+            _, _, _w, _h = draw.multiline_textbbox((0, 0), lesson_title, self.font_mini)
+            if _h == 0:
+                _h = 32
+            draw.multiline_text(
+                ((x + ((w - x) / 2 - _w / 2)), y),
+                lesson_title, foreground, title_font, align='center')
             # Draw lesson teacher and classroom
-            draw.multiline_text((96, y), lesson_title, foreground, self.font)
             teacher_classroom = lesson['teacher'] + ', ' + lesson['classroom']
             length = draw.textlength(teacher_classroom, self.small_font)
             draw.text(
-                ((w - 96) / 2 - length / 2 + 96, y + h),
-                teacher_classroom,
-                foreground,
-                self.small_font
+                ((w - length - 8), y + _h),
+                teacher_classroom, foreground, self.small_font
             )
-            y += 64
+            y += _h + 36
 
         # Save and clear
         img.save(name)
@@ -166,7 +186,7 @@ class Img:
         :param background: background color
         :param foreground: foreground color
         """
-        w, h = 1024, 900
+        w, h = 1280, 900
         y = 32
         img = Image.new('RGBA', (w, h), background)
         draw = ImageDraw.Draw(img, 'RGBA')
@@ -179,7 +199,7 @@ class Img:
         # Draw week days
         y += 96  # offset from week title
         max_y = self._draw_days(timetable['days'][:3], draw, w, y, foreground)
-        y = max_y + 64
+        y = max_y + 32
         self._draw_days(timetable['days'][3:], draw, w, y, foreground)
 
         # Save and clear
