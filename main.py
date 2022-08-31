@@ -170,8 +170,8 @@ async def get_day_timetable(msg: Message):
             day = 5
     image_worker.from_day(
         name, college.get_day(chat.group_id, day, tomorrow),
-        chat.timetable_back,
-        chat.timetable_fore
+        chat.timetable_back, chat.timetable_fore,
+        chat.timetable_teacher, chat.timetable_time
     )
     photo = await uploader.upload(name)
     remove(name)
