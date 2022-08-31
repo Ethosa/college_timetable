@@ -45,7 +45,9 @@ class Img:
             draw: ImageDraw,
             w: int,
             y_offset: int,
-            foreground: str
+            foreground: str,
+            teacher: str,
+            time: str
     ) -> int:
         """Draws list of days
 
@@ -54,6 +56,8 @@ class Img:
         :param w: day width
         :param y_offset: y offset
         :param foreground: foreground color
+        :param teacher: teacher color
+        :param time: time color
         :return: maximum y from days
         """
         offset = 0
@@ -74,13 +78,12 @@ class Img:
                 # Draw lesson time
                 # Lesson number
                 x = offset + draw.textlength(lesson['time'][0], self.title_font)
-                draw.text((offset + 4, y + 8), lesson['time'][0], foreground, self.title_font)
+                draw.text((offset + 4, y + 8), lesson['time'][0], time, self.title_font)
                 # Lesson time from and time to
                 x += 16
                 draw.multiline_text(
                     (x, y), lesson['time'][1] + '\n' + lesson['time'][2],
-                    foreground,
-                    self.font_mini
+                    time, self.font_mini
                 )
                 # Draw lesson title
                 lesson_title = '\n'.join(wrap(lesson['title'], 22))
@@ -98,7 +101,7 @@ class Img:
                 length = draw.textlength(teacher_classroom, self.small_font)
                 draw.text(
                     ((w3 - length + offset - 8), y + _h),
-                    teacher_classroom, foreground, self.small_font
+                    teacher_classroom, teacher, self.small_font
                 )
                 y += _h + 36
                 if max_y < y:
@@ -111,7 +114,9 @@ class Img:
             name: str,
             day: Dict[str, Any],
             background: str,
-            foreground: str
+            foreground: str,
+            teacher: str,
+            time: str
     ) -> NoReturn:
         """Creates an image from day
 
@@ -119,7 +124,8 @@ class Img:
         :param day: day data
         :param background: background color
         :param foreground: foreground color
-        :return:
+        :param teacher: teacher color
+        :param time: time color
         """
         w, h = 512, 600
         y = 16
@@ -139,13 +145,12 @@ class Img:
             # Draw lesson time
             # Lesson number
             x = draw.textlength(lesson['time'][0], self.title_font)
-            draw.text((4, y + 8), lesson['time'][0], foreground, self.title_font)
+            draw.text((4, y + 8), lesson['time'][0], time, self.title_font)
             # Lesson time from and time to
             x += 16
             draw.multiline_text(
                 (x, y), lesson['time'][1] + '\n' + lesson['time'][2],
-                foreground,
-                self.font_mini
+                time, self.font_mini
             )
             # Draw lesson title
             lesson_title = '\n'.join(wrap(lesson['title'], 22))
@@ -163,7 +168,7 @@ class Img:
             length = draw.textlength(teacher_classroom, self.small_font)
             draw.text(
                 ((w - length - 8), y + _h),
-                teacher_classroom, foreground, self.small_font
+                teacher_classroom, teacher, self.small_font
             )
             y += _h + 36
 
@@ -177,7 +182,9 @@ class Img:
             name: str,
             timetable: Dict[str, Any],
             background: str,
-            foreground: str
+            foreground: str,
+            teacher: str,
+            time: str
     ) -> NoReturn:
         """Creates an image from timetable
 
@@ -185,8 +192,10 @@ class Img:
         :param timetable: timetable data
         :param background: background color
         :param foreground: foreground color
+        :param teacher: teacher color
+        :param time: time color
         """
-        w, h = 1280, 900
+        w, h = 1388, 1024
         y = 32
         img = Image.new('RGBA', (w, h), background)
         draw = ImageDraw.Draw(img, 'RGBA')
@@ -198,9 +207,9 @@ class Img:
 
         # Draw week days
         y += 96  # offset from week title
-        max_y = self._draw_days(timetable['days'][:3], draw, w, y, foreground)
+        max_y = self._draw_days(timetable['days'][:3], draw, w, y, foreground, teacher, time)
         y = max_y + 32
-        self._draw_days(timetable['days'][3:], draw, w, y, foreground)
+        self._draw_days(timetable['days'][3:], draw, w, y, foreground, teacher, time)
 
         # Save and clear
         img.save(name)

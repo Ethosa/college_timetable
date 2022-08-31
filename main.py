@@ -76,11 +76,13 @@ async def change_group(msg: Message):
     await msg.answer(f"Группа {group_data['title']} успешно установлена в этом чате✔")
 
 
-@bot.on.message(RegexRule(r"/?(fore|back|фронт|бек|бэк)\s+#[0-9a-fA-F]{6}"))
+@bot.on.message(RegexRule(r"/?(fore|back|фронт|бек|бэк|teacher|time|учитель|время)\s+#[0-9a-fA-F]{6}"))
 async def change_timetable_color(msg: Message):
     """Changes current chat timetable foreground or background"""
     chat = db.get_or_add_chat(msg.peer_id)
-    word, color = findall(r"/?(fore|back|фронт|бек|бэк)\s+(#[0-9a-fA-F]{6})", msg.text)[0]
+    word, color = findall(
+        r"/?(fore|back|фронт|бек|бэк|teacher|time|учитель|время)\s+(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8})",
+        msg.text)[0]
     match word:
         case "fore" | "фронт":
             db.change_chat_tt_fore(chat.chat_id, color)
@@ -88,6 +90,12 @@ async def change_timetable_color(msg: Message):
         case "back" | "бэк" | "бек":
             db.change_chat_tt_back(chat.chat_id, color)
             await msg.answer(f"Фон расписания успешно изменен✔")
+        case "teacher" | "учитель":
+            db.change_chat_tt(chat.chat_id, 'tt_teacher', color)
+            await msg.answer(f"Цвет учителей успешно изменен✔")
+        case "time" | "время":
+            db.change_chat_tt(chat.chat_id, 'tt_time', color)
+            await msg.answer(f"Цвет времени успешно изменен✔")
 
 
 @bot.on.message(RegexRule(r"/?(расписание|timetable)"))
@@ -99,7 +107,10 @@ async def get_timetable(msg: Message):
         return
     timetable = college.get_timetable(chat.group_id)
     name = token_hex(16) + '.png'
-    image_worker.from_timetable(name, timetable, chat.timetable_back, chat.timetable_fore)
+    image_worker.from_timetable(
+        name, timetable,
+        chat.timetable_back, chat.timetable_fore,
+        chat.timetable_teacher, chat.timetable_time)
     photo = await PhotoMessageUploader(api=api).upload(name)
     remove(name)
     await msg.answer(f"Расписание на текущую неделю:", attachment=photo)
@@ -115,7 +126,10 @@ async def get_next_week_timetable(msg: Message):
     timetable = college.get_timetable(chat.group_id)
     timetable = college.get_timetable(chat.group_id, int(timetable['week_number'])+1)
     name = token_hex(16) + '.png'
-    image_worker.from_timetable(name, timetable, chat.timetable_back, chat.timetable_fore)
+    image_worker.from_timetable(
+        name, timetable,
+        chat.timetable_back, chat.timetable_fore,
+        chat.timetable_teacher, chat.timetable_time)
     photo = await PhotoMessageUploader(api=api).upload(name)
     remove(name)
     await msg.answer(f"Расписание на следующую неделю:", attachment=photo)

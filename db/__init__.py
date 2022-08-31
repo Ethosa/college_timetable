@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from sqlite3 import connect
+from typing import Literal
 
 from .types import Chat
 
@@ -16,7 +17,9 @@ class DB:
                 group_id INTEGER NOT NULL,  -- group unique ID
                 title TEXT NOT NULL,  -- group title
                 tt_back TEXT NOT NULL,  -- timetable background
-                tt_fore TEXT NOT NULL  -- timetable foreground
+                tt_fore TEXT NOT NULL,  -- timetable foreground
+                tt_teacher TEXT NOT NULL, -- timetable teacher foreground
+                tt_time TEXT NOT NULL  -- timetable time foreground
             )
         ''')
         self.db.commit()
@@ -30,11 +33,12 @@ class DB:
         chat = self.cursor.execute('SELECT * FROM chat WHERE id = ?', (chat_id,)).fetchone()
         if chat is None:
             self.cursor.execute(
-                'INSERT INTO chat (id, title, group_id, tt_back, tt_fore) VALUES (?, ?, ?, ?, ?)',
-                (chat_id, '', 0, '#212121', '#fefefe')
+                'INSERT INTO chat (id, title, group_id, tt_back, tt_fore, tt_teacher, tt_time) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?)',
+                (chat_id, '', 0, '#212121', '#fefefe', '#cecece', '#98cd98')
             )
             self.db.commit()
-            chat = (chat_id, 0, '', '#212121', '#fefefe')
+            chat = (chat_id, 0, '', '#212121', '#fefefe', '#cecece', '#98cd98')
         return Chat.from_tuple(chat)
 
     def change_chat_group(self, chat_id: int, group_id: int, title: str):
@@ -48,6 +52,25 @@ class DB:
         self.cursor.execute(
             'UPDATE chat SET title = ?, group_id = ? WHERE id = ?',
             (title, group_id, chat_id)
+        )
+        self.db.commit()
+
+    def change_chat_tt(
+            self,
+            chat_id: int,
+            color_name: Literal['tt_fore', 'tt_back', 'tt_teacher', 'tt_time'],
+            color: str
+    ):
+        """Changes chat timetable color
+
+        :param chat_id: unique chat ID
+        :param color_name: color name
+        :param color: HEX color
+        """
+        chat = self.get_or_add_chat(chat_id)
+        self.cursor.execute(
+            f'UPDATE chat SET {color_name} = ? WHERE id = ?',
+            (color, chat_id)
         )
         self.db.commit()
 
