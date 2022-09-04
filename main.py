@@ -178,7 +178,7 @@ async def get_day_timetable(msg: Message):
     await msg.answer(f"Расписание на {text}:", attachment=photo)
 
 
-@bot.on.message(RegexRule(r"/?(dm|дм)(\s+([^\n]+)\s+([^\n]+))?"))
+@bot.on.message(RegexRule(r"/?(dm|дм)(\s+([^\n]+)\s+([^\n]+)|([^\n]+))?"))
 async def dm(msg: Message):
     """Sends demotivator"""
     # Get attachments from message
@@ -200,7 +200,7 @@ async def dm(msg: Message):
             f.write(requests.get(url).content)
         images.append(name)
     # Translate images to demotivators
-    _, _, title, text = findall(r"/?(dm|дм)(\s+([^\n]+)\s+([^\n]+))?", msg.text)[0]
+    _, title, text, _, _ = findall(r"/?(dm|дм)(\s+([^\n]+)\s+([^\n]+)|([^\n]+))?", msg.text)[0]
     if not title and not text:
         image_worker.create_dm(images)
     else:
