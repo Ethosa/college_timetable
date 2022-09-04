@@ -54,7 +54,7 @@ class CollegeAPI:
             today = datetime.now().weekday()
             if tomorrow:
                 # Get next date
-                if today == 5:
+                if today >= 5:
                     # Next week, because 6 is Sunday
                     today = 0
                     timetable = self.get_timetable(group_id, int(timetable['week_number'])+1)
