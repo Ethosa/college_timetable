@@ -229,7 +229,9 @@ async def dm(msg: Message):
     count = 1
     _, text = findall(r"/?(dm|дм)([\s\S]+)?", msg.text)[0]
     text = text.strip()
-    if text.isdigit():
+    if not text:
+        image_worker.create_dm(images)
+    elif text.isdigit():
         count = int(text)
         if count > 10:
             await msg.answer('Слишком большое количество повторений. Максимум 10.')
