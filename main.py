@@ -240,7 +240,12 @@ async def dm(msg: Message):
             image_worker.create_dm(images)
     else:
         data = text.strip().split('\n')
-        if len(data) <= 2:
+        if len(data) == 1:
+            if not data[0]:
+                image_worker.create_dm(images)
+            else:
+                image_worker.create_dm(images, data[0], '')
+        elif len(data) == 2:
             if not data[0] and not data[1]:
                 image_worker.create_dm(images)
             else:
