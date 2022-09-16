@@ -201,7 +201,7 @@ async def get_day_timetable(msg: Message):
     await msg.answer(f"Расписание на {text}:", attachment=photo)
 
 
-@bot.on.message(IRegexRule(r"/?(dm|дм)([ ]+([^\n]+)\n+([^\n]+)|([^\n]+))?"))
+@bot.on.message(IRegexRule(r"/?(dm|дм)([\s\S]+)?"))
 async def dm(msg: Message):
     """Sends demotivator"""
     # Get attachments from message
@@ -224,13 +224,23 @@ async def dm(msg: Message):
             f.write(requests.get(url).content)
         images.append(name)
     # Translate images to demotivators
-    _, _, title, text, title2 = findall(r"/?(dm|дм)([ ]+([^\n]+)\n+([^\n]+)|([^\n]+))?", msg.text)[0]
-    if title2:
-        title = title2
-    if not title and not text:
-        image_worker.create_dm(images)
+    count = 1
+    _, text = findall(r"/?(dm|дм)([\s\S]+)?", msg.text)[0]
+    text = text.strip()
+    if text.isdigit():
+        count = int(text)
+        if count > 10:
+            await msg.answer('Слишком большое количество повторений. Максимум 10.')
+            return
+        for i in range(count):
+            image_worker.create_dm(images)
     else:
-        image_worker.create_dm(images, title, text)
+        data = text.strip().split('\n')
+        for i, j in zip(data[0::2], data[1::2]):
+            if not i and not j:
+                image_worker.create_dm(images)
+            else:
+                image_worker.create_dm(images, i, j)
     # Upload and remove images
     photos = []
     for image in images:
