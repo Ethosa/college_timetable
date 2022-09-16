@@ -1,14 +1,18 @@
 # -*- coding: utf-8 -*-
+from time import time
 from sqlite3 import connect
-from typing import Literal
+from typing import Literal, NoReturn, List
 
-from .types import Chat
+from vkbottle import API
+
+from .types import Chat, User
 
 
 class DB:
     """Provides convenient working with database"""
-    def __init__(self):
+    def __init__(self, api: API):
         """Initializes class and create database if it not exists"""
+        self.api = api
         self.db = connect('chats.db')
         self.cursor = self.db.cursor()
         self.cursor.execute('''
@@ -20,8 +24,59 @@ class DB:
                 tt_fore TEXT NOT NULL,  -- timetable foreground
                 tt_teacher TEXT NOT NULL, -- timetable teacher foreground
                 tt_time TEXT NOT NULL  -- timetable time foreground
-            )
+            );
         ''')
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user (
+                id INTEGER NOT NULL,  -- user ID,
+                nickname TEXT NOT NULL,  -- user nickname
+                count INTEGER NOT NULL,  -- user count
+                last_vote INTEGER NOT NULL  -- last user vote time
+            );
+        ''')
+        self.db.commit()
+
+    async def get_or_add_user(self, uid: int) -> User:
+        """Get user or create new if it not exists
+
+        :param uid: user ID
+        :return: user data
+        """
+        if uid <= 0 or uid >= 2e9:
+            return
+        user = self.cursor.execute('SELECT * FROM user WHERE id = ?', (uid,)).fetchone()
+        if user is None:
+            nickname = (await self.api.users.get(uid))[0].first_name
+            self.cursor.execute(
+                'INSERT INTO user (id, nickname, count, last_vote) VALUES (?, ?, ?, ?)',
+                (uid, nickname, 0, 0))
+            self.db.commit()
+            user = (uid, nickname, 0, 0)
+        return User.from_tuple(user)
+
+    def get_users(self, limit: int, need_reverse: bool = False) -> List[User]:
+        """Returns users top
+
+        :param limit: users count limit
+        :param need_reverse: need reverse users
+        :return: users data
+        """
+        data = self.cursor.execute(
+            f'SELECT * FROM user ORDER BY count {"ASC" if need_reverse else "DESC"} LIMIT ?', (limit,)
+        ).fetchall()
+        return [User.from_tuple(i) for i in data]
+
+    async def inc_user_count(self, from_id: int, uid: int, by: int = 1) -> NoReturn:
+        """Increases/decreases user's count
+
+        :param from_id: user ID who voted
+        :param uid: user ID
+        :param by: count for inc/dec (1/-1)
+        """
+        user = await self.get_or_add_user(uid)
+        self.cursor.execute('UPDATE user SET count = ? WHERE id = ?', (user.count + by, uid))
+        user_voted = await self.get_or_add_user(from_id)
+        self.cursor.execute('UPDATE user SET last_vote = ? WHERE id = ?', (int(time()), from_id))
         self.db.commit()
 
     def get_or_add_chat(self, chat_id: int) -> Chat:
@@ -32,13 +87,13 @@ class DB:
         """
         chat = self.cursor.execute('SELECT * FROM chat WHERE id = ?', (chat_id,)).fetchone()
         if chat is None:
+            data = (chat_id, 0, '', '#212121', '#fefefe', '#cecece', '#98cd98')
             self.cursor.execute(
-                'INSERT INTO chat (id, title, group_id, tt_back, tt_fore, tt_teacher, tt_time) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?)',
-                (chat_id, '', 0, '#212121', '#fefefe', '#cecece', '#98cd98')
+                'INSERT INTO chat (id, group_id, title, tt_back, tt_fore, tt_teacher, tt_time) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?)', data
             )
             self.db.commit()
-            chat = (chat_id, 0, '', '#212121', '#fefefe', '#cecece', '#98cd98')
+            chat = data
         return Chat.from_tuple(chat)
 
     def change_chat_group(self, chat_id: int, group_id: int, title: str):

@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
+from time import time
 from os import remove
 from secrets import token_hex
 
-from re import findall
+from re import findall, compile, IGNORECASE
+from typing import Union, List, Pattern
 
 import requests
 from vkbottle import PhotoMessageUploader
@@ -13,15 +15,28 @@ from vkbottle.dispatch.rules.base import RegexRule
 from college_api import CollegeAPI
 from db import DB
 from image import Img
-from config import GROUP_TOKEN, DM_DATA
+from config import GROUP_TOKEN, DM_DATA, VOTE_TIMEOUT
 
 api = API(token=GROUP_TOKEN)
 bot = Bot(api=api)
 bot.labeler.vbml_ignore_case = True
 uploader = PhotoMessageUploader(api=api)
-db = DB()
+db = DB(api)
 college = CollegeAPI()
 image_worker = Img(dm_data=DM_DATA)
+
+
+class IRegexRule(RegexRule):
+    def __init__(self, regexp: Union[str, List[str], Pattern, List[Pattern]]):
+        super().__init__(regexp)
+        if isinstance(regexp, Pattern):
+            regexp = [regexp]
+        elif isinstance(regexp, str):
+            regexp = [compile(regexp, IGNORECASE)]
+        elif isinstance(regexp, list):
+            regexp = [compile(exp, IGNORECASE) for exp in regexp]
+
+        self.regexp = regexp
 
 
 async def chat_not_installed(msg: Message):
@@ -46,9 +61,10 @@ def get_attachments_photo(msg: Message):
     return urls
 
 
-@bot.on.message(RegexRule(r"/?(help|commands|команды|помощь)"))
+@bot.on.message(IRegexRule(r"/?(help|commands|команды|помощь)"))
 async def help_message(msg: Message):
     """Sends help message"""
+    user = await db.get_or_add_user(msg.from_id)
     await msg.answer(
         "Вот, что я умею:\n"
         "◾ помощь - сообщение с доступными командами;\n"
@@ -63,9 +79,10 @@ async def help_message(msg: Message):
     )
 
 
-@bot.on.message(RegexRule(r"/?(группа|group)\s+\w{1,3}([\s\.\-]\d{2,3})+?"))
+@bot.on.message(IRegexRule(r"/?(группа|group)\s+\w{1,3}([\s\.\-]\d{2,3})+?"))
 async def change_group(msg: Message):
     """Changes current chat group"""
+    user = await db.get_or_add_user(msg.from_id)
     chat = db.get_or_add_chat(msg.peer_id)
     group = college.to_group_name(findall(r'(\w{1,3}([\s\.\-]\d{1,3})+)', msg.text)[0][0])
     group_data = college.get_group(group)
@@ -76,9 +93,10 @@ async def change_group(msg: Message):
     await msg.answer(f"Группа {group_data['title']} успешно установлена в этом чате✔")
 
 
-@bot.on.message(RegexRule(r"/?(fore|back|фронт|бек|бэк|teacher|time|учитель|время)\s+#[0-9a-fA-F]{6}"))
+@bot.on.message(IRegexRule(r"/?(fore|back|фронт|бек|бэк|teacher|time|учитель|время)\s+#[0-9a-fA-F]{6}"))
 async def change_timetable_color(msg: Message):
     """Changes current chat timetable foreground or background"""
+    user = await db.get_or_add_user(msg.from_id)
     chat = db.get_or_add_chat(msg.peer_id)
     word, color = findall(
         r"/?(fore|back|фронт|бек|бэк|teacher|time|учитель|время)\s+(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8})",
@@ -98,9 +116,10 @@ async def change_timetable_color(msg: Message):
             await msg.answer(f"Цвет времени успешно изменен✔")
 
 
-@bot.on.message(RegexRule(r"/?(расписание|timetable)"))
+@bot.on.message(IRegexRule(r"/?(расписание|timetable)"))
 async def get_timetable(msg: Message):
     """Sends actual timetable if available"""
+    user = await db.get_or_add_user(msg.from_id)
     chat = db.get_or_add_chat(msg.peer_id)
     if chat.title == '':
         await chat_not_installed(msg)
@@ -116,9 +135,10 @@ async def get_timetable(msg: Message):
     await msg.answer(f"Расписание на текущую неделю:", attachment=photo)
 
 
-@bot.on.message(RegexRule(r"/?(след\s+неделя|следующая\s+неделя|next\s+week)"))
+@bot.on.message(IRegexRule(r"/?(след\s+неделя|следующая\s+неделя|next\s+week)"))
 async def get_next_week_timetable(msg: Message):
     """Sends actual timetable for the next week if available"""
+    user = await db.get_or_add_user(msg.from_id)
     chat = db.get_or_add_chat(msg.peer_id)
     if chat.title == '':
         await chat_not_installed(msg)
@@ -136,12 +156,13 @@ async def get_next_week_timetable(msg: Message):
 
 
 @bot.on.message(
-    RegexRule(
+    IRegexRule(
         r"/?(сегодня|today|завтра|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|"
         r"понедельник|вторник|среда|четверг|пятница|суббота)")
 )
 async def get_day_timetable(msg: Message):
     """Sends actual timetable for day"""
+    user = await db.get_or_add_user(msg.from_id)
     text = msg.text.lstrip('/').lower()
     chat = db.get_or_add_chat(msg.peer_id)
     if chat.title == '':
@@ -178,10 +199,11 @@ async def get_day_timetable(msg: Message):
     await msg.answer(f"Расписание на {text}:", attachment=photo)
 
 
-@bot.on.message(RegexRule(r"/?(dm|дм)([ ]+([^\n]+)\n+([^\n]+)|([^\n]+))?"))
+@bot.on.message(IRegexRule(r"/?(dm|дм)([ ]+([^\n]+)\n+([^\n]+)|([^\n]+))?"))
 async def dm(msg: Message):
     """Sends demotivator"""
     # Get attachments from message
+    user = await db.get_or_add_user(msg.from_id)
     urls = get_attachments_photo(msg)
     if not urls and msg.reply_message:
         urls = get_attachments_photo(msg.reply_message)
@@ -213,6 +235,50 @@ async def dm(msg: Message):
         photos.append(await uploader.upload(image))
         remove(image)
     await msg.answer(attachment=','.join(photos))
+
+
+@bot.on.message(IRegexRule(r'/?(top|топ|down|низ)'))
+async def show_top(msg: Message):
+    command = findall(r'/?(top|топ|down|низ)', msg.text, IGNORECASE)[0].lower()
+    user = await db.get_or_add_user(msg.from_id)
+    users = []
+    match command:
+        case 'top' | 'топ':
+            users = db.get_users(10)
+        case 'down' | 'низ':
+            users = db.get_users(10, True)
+    await msg.answer(
+        '\n'.join(f'{i+1}. [id{v.uid}|{v.nickname}] ({v.count})'
+                  for i, v in enumerate(users))
+    )
+
+
+@bot.on.message(IRegexRule(r'/?([\+\-])'))
+async def incdec_count(msg: Message):
+    if msg.reply_message is None:
+        return
+    if msg.reply_message.from_id == msg.from_id:
+        await msg.answer('❌ Нельзя изменять карму самому себе.')
+        return
+    command = findall(r'/?([+\-])', msg.text, IGNORECASE)[0]
+    user = await db.get_or_add_user(msg.from_id)
+    timeout = time() - user.last_vote
+    if timeout < VOTE_TIMEOUT:
+        timeout = VOTE_TIMEOUT - timeout
+        hours = str(int(timeout // 60 // 60)).zfill(2)
+        mins = str(int((timeout // 60) - (timeout // 60 // 60))).zfill(2)
+        seconds = str(int(timeout - timeout//60*60)).zfill(2)
+        await msg.answer(f'❌ Извините, но Вы пока что не можете голосовать. ⌛ Осталось ждать {hours}:{mins}:{seconds}')
+        return
+    other = await db.get_or_add_user(msg.reply_message.from_id)
+    result = other.count
+    if command == '+':
+        await db.inc_user_count(msg.from_id, msg.reply_message.from_id)
+        result += 1
+    else:
+        await db.inc_user_count(msg.from_id, msg.reply_message.from_id, -1)
+        result -= 1
+    await msg.answer(f'Карма [id{other.uid}|{other.nickname}] изменена: {other.count} → {result}')
 
 
 if __name__ == '__main__':

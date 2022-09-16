@@ -31,3 +31,24 @@ class Chat:
             f"({self.timetable_back}, {self.timetable_fore}, "
             f"{self.timetable_teacher}, {self.timetable_time})"
         )
+
+
+class User:
+    @staticmethod
+    def from_tuple(data: Tuple[int, int, str]) -> 'User':
+        return User(*data)
+
+    def __init__(
+            self,
+            uid: int,
+            nickname: str,
+            count: int,
+            last_vote: int
+    ):
+        self.uid = uid
+        self.nickname = nickname
+        self.count = count
+        self.last_vote = last_vote
+
+    def __repr__(self) -> str:
+        return f"User[{self.uid}]::{self.count} {self.nickname}"
