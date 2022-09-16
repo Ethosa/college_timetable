@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from random import randint
 from time import time
 from os import remove
 from secrets import token_hex
@@ -13,9 +14,10 @@ from vkbottle.bot import Bot, Message
 from vkbottle.dispatch.rules.base import RegexRule
 
 from college_api import CollegeAPI
-from db import DB
+from db import DB, Chat
 from image import Img
-from config import GROUP_TOKEN, DM_DATA, VOTE_TIMEOUT
+from config import GROUP_TOKEN, DM_DATA, VOTE_TIMEOUT, ADMINS
+
 
 api = API(token=GROUP_TOKEN)
 bot = Bot(api=api)
@@ -86,7 +88,7 @@ async def change_group(msg: Message):
     """Changes current chat group"""
     user = await db.get_or_add_user(msg.from_id)
     chat = db.get_or_add_chat(msg.peer_id)
-    group = college.to_group_name(findall(r'(\w{1,3}([\s\.\-]\d{1,3})+)', msg.text)[0][0])
+    group = college.to_group_name(findall(r'(\w{1,3}([\s.\-]\d{1,3})+)', msg.text)[0][0])
     group_data = college.get_group(group)
     if group_data is None:
         await msg.answer(f"Увы, но такой группы нет❌")
@@ -291,6 +293,19 @@ async def incdec_count(msg: Message):
         await db.inc_user_count(msg.from_id, msg.reply_message.from_id, -1)
         result -= 1
     await msg.answer(f'Карма [id{other.uid}|{other.nickname}] изменена: {other.count} → {result}')
+
+
+@bot.on.message(IRegexRule(r'/?рассылка ([\s\S]+)'))
+async def send_all(msg: Message):
+    if msg.from_id not in ADMINS:
+        await msg.answer('❌ Извините, но у вас нет на это прав.')
+        return
+    chats = db.cursor.execute('SELECT * FROM chat').fetchall()
+    chats = [Chat.from_tuple(i) for i in chats]
+    text = findall(r'/?рассылка ([\s\S]+)', msg.text)[0]
+    await api.messages.send(
+        peer_ids=','.join([str(chat.chat_id) for chat in chats]),
+        message=text, random_id=randint(0, 2e3))
 
 
 if __name__ == '__main__':
