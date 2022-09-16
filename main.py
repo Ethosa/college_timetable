@@ -303,9 +303,11 @@ async def send_all(msg: Message):
     chats = db.cursor.execute('SELECT * FROM chat').fetchall()
     chats = [Chat.from_tuple(i) for i in chats]
     text = findall(r'/?рассылка ([\s\S]+)', msg.text)[0]
-    await api.messages.send(
-        peer_ids=','.join([str(chat.chat_id) for chat in chats]),
-        message=text, random_id=randint(0, 2e3))
+    chats = [chats[i:i+99] for i in range(0, len(chats), 99)]
+    for c in chats:
+        await api.messages.send(
+            peer_ids=','.join([str(chat.chat_id) for chat in c]),
+            message=text, random_id=randint(0, 2e3))
 
 
 if __name__ == '__main__':
