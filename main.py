@@ -240,11 +240,17 @@ async def dm(msg: Message):
             image_worker.create_dm(images)
     else:
         data = text.strip().split('\n')
-        for i, j in zip(data[0::2], data[1::2]):
-            if not i and not j:
+        if len(data) <= 2:
+            if not data[0] and not data[1]:
                 image_worker.create_dm(images)
             else:
-                image_worker.create_dm(images, i, j)
+                image_worker.create_dm(images, data[0], data[1])
+        else:
+            for i, j in zip(data[0::2], data[1::2]):
+                if not i and not j:
+                    image_worker.create_dm(images)
+                else:
+                    image_worker.create_dm(images, i, j)
     # Upload and remove images
     photos = []
     for image in images:
