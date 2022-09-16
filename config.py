@@ -8,3 +8,5 @@ DM_DATA = [
 ]
 
 VOTE_TIMEOUT = 60 * 30  # 30 minutes
+
+ADMINS = [556962840]
