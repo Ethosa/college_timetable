@@ -6,3 +6,5 @@ DM_DATA = [
     ("title", "subtitle"),  # title and subtitle
     "title",  # only title
 ]
+
+VOTE_TIMEOUT = 60 * 30  # 30 minutes
