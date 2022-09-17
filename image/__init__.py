@@ -1,9 +1,16 @@
 # -*- coding: utf-8 -*-
+import asyncio
+import os
 from random import choice
 from typing import Dict, Any, List, NoReturn, Optional, Union, Tuple
 from textwrap import wrap
+from threading import Thread
 
 from PIL import Image, ImageDraw, ImageFont
+import numpy as np
+import seam_carving
+from vkbottle import PhotoMessageUploader
+from vkbottle.bot import Message
 
 
 class Img:
@@ -30,7 +37,8 @@ class Img:
         :param xxl_size: large text size
         :param dm_data: data for dm
         """
-        ttf = lambda size: ImageFont.truetype(font_path, size, encoding=encoding)
+        def ttf(size):
+            return ImageFont.truetype(font_path, size, encoding=encoding)
         self.title_font = ttf(xl_size)
         self.font_mini = ttf(int(xl_size * 0.75))
         self.font = ttf(lg_size)
@@ -265,3 +273,61 @@ class Img:
             del src
             del dst
             del draw
+
+    @staticmethod
+    async def seam_carve(
+            images: List[str],
+            percent: int,
+            msg: Message,
+            uploader: PhotoMessageUploader
+    ) -> NoReturn:
+        """Use seam carving on source image
+
+        :param images: images path
+        :param percent: resize percent
+        :param msg: bot message
+        :param uploader: photo uploader object
+        """
+        def process(s, p):
+            i = 1.0 - (p / 100)
+            print(s)
+            for src in s:
+                img = np.array(Image.open(src))
+                h, w, c = img.shape
+                backward = seam_carving.resize(img, (int(w*i), int(h*i)))
+                img = Image.fromarray(backward)
+                img.resize((w, h)).save(src)
+
+        async def callback(t: Thread):
+            # Upload and remove images
+            photos = []
+            for image in images:
+                photos.append(await uploader.upload(image))
+                os.remove(image)
+            print(photos)
+            await msg.answer(attachment=','.join(photos))
+        thread = TManager.new(callback, process, [], [images, percent])
+        await thread.run()
+
+
+class TManager:
+    @staticmethod
+    def new(callback, call, callback_args=None, call_args=None):
+        if call_args is None:
+            call_args = []
+        if callback_args is None:
+            callback_args = []
+        return TThread(callback, call, callback_args, call_args)
+
+
+class TThread(Thread):
+    def __init__(self, callback, call, callback_args, call_args):
+        super().__init__()
+        self.callback = callback
+        self.callback_args = callback_args
+        self.call = call
+        self.call_args = call_args
+
+    async def run(self) -> None:
+        self.call(*self.call_args)
+        await self.callback(self, *self.callback_args)

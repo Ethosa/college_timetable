@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import asyncio
 from random import randint
 from time import time
 from os import remove
@@ -312,6 +313,37 @@ async def send_all(msg: Message):
         await api.messages.send(
             peer_ids=','.join([str(chat.chat_id) for chat in c]),
             message=text, random_id=randint(0, 2e3))
+
+
+@bot.on.message(IRegexRule(r'/?(жмых|seam carve)(\s+\d{1,2})?'))
+async def seam_carve_img(msg: Message):
+    percent = 25
+    command = findall(r'/?(жмых|seam carve)(\s+\d{1,3})?', msg.text)[0][1].strip()
+    if command:
+        percent = int(command)
+        if percent > 99:
+            await msg.answer('Процент не может быть больше 100')
+            return
+    user = await db.get_or_add_user(msg.from_id)
+    urls = get_attachments_photo(msg)
+    if not urls and msg.reply_message:
+        urls = get_attachments_photo(msg.reply_message)
+    if not urls and msg.fwd_messages:
+        for fwd in msg.fwd_messages:
+            urls += get_attachments_photo(fwd)
+    # Check urls
+    if not urls:
+        await msg.answer(f"Вы должны отправить картинку.")
+        return
+    # Download images
+    images = []
+    for url in urls:
+        name = token_hex(24) + '.png'
+        with open(name, 'wb') as f:
+            f.write(requests.get(url).content)
+        images.append(name)
+    await msg.answer('Начинаю обработку ...')
+    await image_worker.seam_carve(images, percent, msg, uploader)
 
 
 if __name__ == '__main__':
