@@ -4,3 +4,4 @@ Pillow~=9.2.0
 numpy~=1.22.1
 DateTime~=4.3
 seam-carving
+saya~=0.4.17

@@ -11,6 +11,8 @@ import numpy as np
 import seam_carving
 from vkbottle import PhotoMessageUploader
 from vkbottle.bot import Message
+from vk_api.upload import VkUpload
+from vk_api.vk_api import VkApiGroup
 
 
 class Img:
@@ -279,55 +281,34 @@ class Img:
             images: List[str],
             percent: int,
             msg: Message,
-            uploader: PhotoMessageUploader
+            token: str
     ) -> NoReturn:
         """Use seam carving on source image
 
         :param images: images path
         :param percent: resize percent
         :param msg: bot message
-        :param uploader: photo uploader object
+        :param token: access token
         """
-        def process(s, p):
-            i = 1.0 - (p / 100)
-            print(s)
-            for src in s:
+        def task():
+            i = 1.0 - (percent / 100)
+            print(images)
+            for src in images:
                 img = np.array(Image.open(src))
                 h, w, c = img.shape
                 backward = seam_carving.resize(img, (int(w*i), int(h*i)))
                 img = Image.fromarray(backward)
                 img.resize((w, h)).save(src)
-
-        async def callback(t: Thread):
             # Upload and remove images
             photos = []
+            vk = VkApiGroup(token=token, api_version=5.131)
+            uploader = VkUpload(vk)
             for image in images:
-                photos.append(await uploader.upload(image))
+                photos.append(uploader.photo_messages(image, msg.peer_id))
                 os.remove(image)
-            print(photos)
-            await msg.answer(attachment=','.join(photos))
-        thread = TManager.new(callback, process, [], [images, percent])
-        await thread.run()
-
-
-class TManager:
-    @staticmethod
-    def new(callback, call, callback_args=None, call_args=None):
-        if call_args is None:
-            call_args = []
-        if callback_args is None:
-            callback_args = []
-        return TThread(callback, call, callback_args, call_args)
-
-
-class TThread(Thread):
-    def __init__(self, callback, call, callback_args, call_args):
-        super().__init__()
-        self.callback = callback
-        self.callback_args = callback_args
-        self.call = call
-        self.call_args = call_args
-
-    async def run(self) -> None:
-        self.call(*self.call_args)
-        await self.callback(self, *self.callback_args)
+            vk.method('messages.send', {
+                'attachment': ','.join([f'photo{i[0]["owner_id"]}_{i[0]["id"]}' for i in photos]),
+                'random_id': 0,
+                'peer_id': msg.peer_id
+            })
+        Thread(target=task).start()

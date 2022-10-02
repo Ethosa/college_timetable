@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import asyncio
+import threading
 from random import randint
 from time import time
 from os import remove
@@ -343,7 +344,7 @@ async def seam_carve_img(msg: Message):
             f.write(requests.get(url).content)
         images.append(name)
     await msg.answer('Начинаю обработку ...')
-    await image_worker.seam_carve(images, percent, msg, uploader)
+    await image_worker.seam_carve(images, percent, msg, GROUP_TOKEN)
 
 
 if __name__ == '__main__':
