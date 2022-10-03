@@ -377,7 +377,7 @@ async def get_next_week_timetable(msg: Message):
         return
     photo = await PhotoMessageUploader(api=api).upload(name)
     remove(name)
-    await msg.answer(f"Ваши оценки:", attachment=photo)
+    await msg.answer(f"Ваши оценки:\nЧтобы войти в ProCollege, напишите /логин ЛОГИН ПАРОЛЬ", attachment=photo)
 
 
 if __name__ == '__main__':
