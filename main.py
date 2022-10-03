@@ -372,7 +372,7 @@ async def get_next_week_timetable(msg: Message):
             chat.timetable_back, chat.timetable_fore,
             chat.timetable_teacher, chat.timetable_time
         )
-    except pydantic.error_wrappers.ErrorWrapper:
+    except Exception:
         await msg.answer("Произошла ошибка. Возможно неверные данные для входа")
         return
     photo = await PhotoMessageUploader(api=api).upload(name)
