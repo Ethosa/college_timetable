@@ -345,6 +345,8 @@ class Img:
         y = grade_height
         for grade in grades:
             # title
+            if len(grade.title) > 60:
+                grade.title = grade.title[:60] + '...'
             title = '\n'.join(wrap(grade.title, 22))
             _, _, tw, th = draw.multiline_textbbox((0, 0), title, self.title_font)
             draw.multiline_text(
