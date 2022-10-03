@@ -5,7 +5,7 @@ from typing import Literal, NoReturn, List
 
 from vkbottle import API
 
-from .types import Chat, User
+from .types import Chat, User, ProCollege
 
 
 class DB:
@@ -32,6 +32,13 @@ class DB:
                 nickname TEXT NOT NULL,  -- user nickname
                 count INTEGER NOT NULL,  -- user count
                 last_vote INTEGER NOT NULL  -- last user vote time
+            );
+        ''')
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS procollege (
+                id INTEGER NOT NULL,  -- user ID
+                login TEXT NOT NULL,  -- user login
+                password TEXT NOT NULL
             );
         ''')
         self.db.commit()
@@ -95,6 +102,22 @@ class DB:
             self.db.commit()
             chat = data
         return Chat.from_tuple(chat)
+
+    def get_or_add_pro(self, uid: int) -> ProCollege:
+        pro = self.cursor.execute('SELECT * FROM procollege WHERE id = ?', (uid,)).fetchone()
+        if pro is None:
+            data = (uid, '', '')
+            self.cursor.execute(
+                'INSERT INTO procollege(id, login, password) VALUES(?, ?, ?)', data
+            )
+            self.db.commit()
+            pro = data
+        return ProCollege.from_tuple(pro)
+
+    def auth(self, uid: int, login: str, password: str):
+        pro = self.get_or_add_pro(uid)
+        self.cursor.execute('UPDATE procollege SET login = ?, password = ? WHERE id = ?', (login, password, uid))
+        self.db.commit()
 
     def change_chat_group(self, chat_id: int, group_id: int, title: str):
         """Changes chat group

@@ -52,3 +52,19 @@ class User:
 
     def __repr__(self) -> str:
         return f"User[{self.uid}]::{self.count} {self.nickname}"
+
+
+class ProCollege:
+    @staticmethod
+    def from_tuple(data: Tuple[int, str, str]) -> 'ProCollege':
+        return ProCollege(*data)
+
+    def __init__(
+            self,
+            uid: int,
+            login: str,
+            password: str
+    ):
+        self.uid = uid
+        self.login = login
+        self.password = password

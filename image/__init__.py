@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import asyncio
 import os
 from random import choice
 from typing import Dict, Any, List, NoReturn, Optional, Union, Tuple
@@ -9,10 +8,10 @@ from threading import Thread
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import seam_carving
-from vkbottle import PhotoMessageUploader
 from vkbottle.bot import Message
 from vk_api.upload import VkUpload
 from vk_api.vk_api import VkApiGroup
+from ktc_api.types import Grade
 
 
 class Img:
@@ -312,3 +311,71 @@ class Img:
                 'peer_id': msg.peer_id
             })
         Thread(target=task).start()
+
+    def create_grades(
+            self,
+            file: str,
+            grades: List[Grade],
+            background: str,
+            foreground: str,
+            teacher: str,
+            time: str
+    ) -> str:
+        grade_height = 128
+        w = 1400
+        w3 = w//3
+        padding = 16
+        h = (len(grades)+1) * grade_height
+        img = Image.new('RGBA', (w, h), background)
+        draw = ImageDraw.Draw(img)
+
+        # table lines
+        draw.line(((w3, padding), (w3, h - padding)), foreground)
+        draw.line(((w3*2, padding), (w3*2, h - padding)), foreground)
+        draw.line(((padding, grade_height-padding), (w-padding, grade_height-padding)), foreground)
+
+        # columns
+        for i, v in enumerate(('Предмет', 'Оценки', 'Пропуски (часы)')):
+            _, _, cw, ch = draw.textbbox((0, 0), v, self.title_font)
+            draw.text(
+                (padding + w3*i + w3/2 - cw/2, padding + grade_height/2 - ch/2),
+                v, foreground, self.title_font
+            )
+
+        y = grade_height
+        for grade in grades:
+            # title
+            title = '\n'.join(wrap(grade.title, 22))
+            _, _, tw, th = draw.multiline_textbbox((0, 0), title, self.title_font)
+            draw.multiline_text(
+                (padding, y + grade_height/2 - th/2),
+                title, foreground, self.title_font
+            )
+            # skipped
+            _, _, tw, th = draw.textbbox((0, 0), grade.skipped, self.title_font)
+            draw.text(
+                (padding + w3*2 + w3/2 - tw/2, y + grade_height/2 - th/2),
+                grade.skipped, foreground, self.title_font
+            )
+            # all grades
+            _, _, nw, nh = draw.textbbox((0, 0), grade.final_grade, self.title_font)
+            grades_width = nw * len(grade.grades)+1 + len(grade.grades)*(padding/2)
+            x = w3 + padding
+            for g in grade.grades:
+                _, _, nw, nh = draw.textbbox((0, 0), str(g.grade), self.title_font)
+                draw.text(
+                    (x + w3/2 - grades_width/2, y + grade_height/2 - nh/2),
+                    str(g.grade), teacher, self.title_font
+                )
+                x += nw + padding/2
+            # final grade
+            _, _, nw, nh = draw.textbbox((0, 0), grade.final_grade, self.title_font)
+            draw.text(
+                (x + w3/2 - grades_width/2, y + grade_height / 2 - nh / 2),
+                grade.final_grade, time, self.title_font
+            )
+            y += grade_height
+
+        img.save(file)
+        del img
+        del draw

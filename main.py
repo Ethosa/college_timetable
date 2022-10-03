@@ -14,6 +14,7 @@ from vkbottle import PhotoMessageUploader
 from vkbottle.api import API
 from vkbottle.bot import Bot, Message
 from vkbottle.dispatch.rules.base import RegexRule
+from ktc_api.aio import AKTCClient
 
 from college_api import CollegeAPI
 from db import DB, Chat
@@ -27,6 +28,7 @@ bot.labeler.vbml_ignore_case = True
 uploader = PhotoMessageUploader(api=api)
 db = DB(api)
 college = CollegeAPI()
+client = AKTCClient()
 image_worker = Img(dm_data=DM_DATA)
 
 
@@ -345,6 +347,32 @@ async def seam_carve_img(msg: Message):
         images.append(name)
     await msg.answer('Начинаю обработку ...')
     await image_worker.seam_carve(images, percent, msg, GROUP_TOKEN)
+
+
+@bot.on.message(IRegexRule(r'/?(login|логин|вход|auth)\s+(\S+)\s+(\S+)'))
+async def auth(msg: Message):
+    if msg.peer_id > 2e9:
+        await msg.answer('❌ Увы, но входить в про колледж можно только в личных сообщениях')
+        return
+    command, login, password = findall(r'/?(login|логин|вход|auth)\s+(\S+)\s+(\S+)', msg.text)[0]
+    pro = db.auth(msg.from_id, login, password)
+    await msg.answer('✅ Данные для входа сохранены. Теперь доступен просмотр оценок.')
+
+
+@bot.on.message(IRegexRule(r"/?(оценки|grades)"))
+async def get_next_week_timetable(msg: Message):
+    """Sends actual timetable for the next week if available"""
+    pro = db.get_or_add_pro(msg.from_id)
+    chat = db.get_or_add_chat(msg.peer_id)
+    name = token_hex(16) + '.png'
+    image_worker.create_grades(
+        name, await client.grades(pro.login, pro.password),
+        chat.timetable_back, chat.timetable_fore,
+        chat.timetable_teacher, chat.timetable_time
+    )
+    photo = await PhotoMessageUploader(api=api).upload(name)
+    remove(name)
+    await msg.answer(f"Ваши оценки:", attachment=photo)
 
 
 if __name__ == '__main__':
