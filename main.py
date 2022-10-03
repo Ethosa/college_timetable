@@ -9,6 +9,7 @@ from secrets import token_hex
 from re import findall, compile, IGNORECASE
 from typing import Union, List, Pattern
 
+import pydantic
 import requests
 from vkbottle import PhotoMessageUploader
 from vkbottle.api import API
@@ -365,11 +366,15 @@ async def get_next_week_timetable(msg: Message):
     pro = db.get_or_add_pro(msg.from_id)
     chat = db.get_or_add_chat(msg.peer_id)
     name = token_hex(16) + '.png'
-    image_worker.create_grades(
-        name, await client.grades(pro.login, pro.password),
-        chat.timetable_back, chat.timetable_fore,
-        chat.timetable_teacher, chat.timetable_time
-    )
+    try:
+        image_worker.create_grades(
+            name, await client.grades(pro.login, pro.password),
+            chat.timetable_back, chat.timetable_fore,
+            chat.timetable_teacher, chat.timetable_time
+        )
+    except pydantic.error_wrappers.ErrorWrapper:
+        await msg.answer("Произошла ошибка. Возможно неверные данные для входа")
+        return
     photo = await PhotoMessageUploader(api=api).upload(name)
     remove(name)
     await msg.answer(f"Ваши оценки:", attachment=photo)
