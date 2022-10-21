@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-import asyncio
-import threading
-from random import randint
+import re
+from random import randint, choice
 from time import time
 from os import remove
 from secrets import token_hex
@@ -9,19 +8,18 @@ from secrets import token_hex
 from re import findall, compile, IGNORECASE
 from typing import Union, List, Pattern
 
-import pydantic
 import requests
 from vkbottle import PhotoMessageUploader
 from vkbottle.api import API
 from vkbottle.bot import Bot, Message
 from vkbottle.dispatch.rules.base import RegexRule
 from ktc_api.aio import AKTCClient
+from markovify.text import Text
 
 from college_api import CollegeAPI
 from db import DB, Chat
 from image import Img
-from config import GROUP_TOKEN, DM_DATA, VOTE_TIMEOUT, ADMINS
-
+from config import GROUP_TOKEN, DM_DATA, VOTE_TIMEOUT, ADMINS, MESSAGE_STATES
 
 api = API(token=GROUP_TOKEN)
 bot = Bot(api=api)
@@ -153,7 +151,7 @@ async def get_next_week_timetable(msg: Message):
         await chat_not_installed(msg)
         return
     timetable = college.get_timetable(chat.group_id)
-    timetable = college.get_timetable(chat.group_id, int(timetable['week_number'])+1)
+    timetable = college.get_timetable(chat.group_id, int(timetable['week_number']) + 1)
     name = token_hex(16) + '.png'
     image_worker.from_timetable(
         name, timetable,
@@ -271,7 +269,7 @@ async def show_top(msg: Message):
         case 'down' | 'низ':
             users = db.get_users(10, True)
     await msg.answer(
-        '\n'.join(f'{i+1}. [id{v.uid}|{v.nickname}] ({v.count})'
+        '\n'.join(f'{i + 1}. [id{v.uid}|{v.nickname}] ({v.count})'
                   for i, v in enumerate(users))
     )
 
@@ -290,7 +288,7 @@ async def incdec_count(msg: Message):
         timeout = VOTE_TIMEOUT - timeout
         hours = str(int(timeout // 60 // 60)).zfill(2)
         mins = str(int((timeout // 60) - (timeout // 60 // 60))).zfill(2)
-        seconds = str(int(timeout - timeout//60*60)).zfill(2)
+        seconds = str(int(timeout - timeout // 60 * 60)).zfill(2)
         await msg.answer(f'❌ Извините, но Вы пока что не можете голосовать. ⌛ Осталось ждать {hours}:{mins}:{seconds}')
         return
     other = await db.get_or_add_user(msg.reply_message.from_id)
@@ -312,7 +310,7 @@ async def send_all(msg: Message):
     chats = db.cursor.execute('SELECT * FROM chat').fetchall()
     chats = [Chat.from_tuple(i) for i in chats]
     text = findall(r'/?рассылка ([\s\S]+)', msg.text)[0]
-    chats = [chats[i:i+99] for i in range(0, len(chats), 99)]
+    chats = [chats[i:i + 99] for i in range(0, len(chats), 99)]
     for c in chats:
         await api.messages.send(
             peer_ids=','.join([str(chat.chat_id) for chat in c]),
@@ -378,6 +376,27 @@ async def get_next_week_timetable(msg: Message):
     photo = await PhotoMessageUploader(api=api).upload(name)
     remove(name)
     await msg.answer(f"Ваши оценки:\nЧтобы войти в ProCollege, напишите /логин ЛОГИН ПАРОЛЬ", attachment=photo)
+
+
+@bot.on.chat_message()
+async def on_chat_message(msg: Message):
+    state = db.inc_state(msg.peer_id, re.sub(r"{[^}]+}", "", msg.text))
+    if state.state == 0:
+        text = choice(MESSAGE_STATES)
+        model = Text(state.text, well_formed=False)
+        for i in re.findall(r"{markov(\d+)}", text):
+            try:
+                sentence = model.make_sentence_with_start(msg.text.split()[-1], strict=False, tries=25)
+            except Exception:
+                sentence = None
+            if sentence is None:
+                sentence = model.make_short_sentence(int(i), tries=25)
+            if sentence is None:
+                sentence = model.make_sentence(tries=25)
+            if sentence is None:
+                sentence = ""
+            text = text.replace("{markov" + i + "}", sentence)
+        await msg.answer(text)
 
 
 if __name__ == '__main__':

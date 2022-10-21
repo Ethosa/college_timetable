@@ -5,7 +5,8 @@ from typing import Literal, NoReturn, List
 
 from vkbottle import API
 
-from .types import Chat, User, ProCollege
+from .types import Chat, User, ProCollege, PhraseState
+from config import MESSAGE_STATE, MESSAGE_STATES
 
 
 class DB:
@@ -39,6 +40,13 @@ class DB:
                 id INTEGER NOT NULL,  -- user ID
                 login TEXT NOT NULL,  -- user login
                 password TEXT NOT NULL
+            );
+        ''')
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS phraseState (
+                id INTEGER NOT NULL, -- chat ID
+                state INTEGER NOT NULL,  -- current state
+                phrases TEXT NOT NULL -- all phrases
             );
         ''')
         self.db.commit()
@@ -114,6 +122,17 @@ class DB:
             pro = data
         return ProCollege.from_tuple(pro)
 
+    def get_or_add_phrase_state(self, chat_id: int) -> PhraseState:
+        state = self.cursor.execute('SELECT * FROM phraseState WHERE id = ?', (chat_id,)).fetchone()
+        if state is None:
+            data = (chat_id, 0, "")
+            self.cursor.execute(
+                'INSERT INTO phraseState(id, state, phrases) VALUES(?, ?, ?)', data
+            )
+            self.db.commit()
+            state = data
+        return PhraseState.from_tuple(state)
+
     def auth(self, uid: int, login: str, password: str):
         pro = self.get_or_add_pro(uid)
         self.cursor.execute('UPDATE procollege SET login = ?, password = ? WHERE id = ?', (login, password, uid))
@@ -132,6 +151,22 @@ class DB:
             (title, group_id, chat_id)
         )
         self.db.commit()
+
+    def inc_state(self, chat_id: int, text: str):
+        """Changes chat group
+
+        :param chat_id: unique chat ID
+        :param text: message text
+        """
+        state = self.get_or_add_phrase_state(chat_id)
+        state.state = state.state+1 if state.state+1 <= MESSAGE_STATE else 0
+        state.text += ' ' + text
+        self.cursor.execute(
+            'UPDATE phraseState SET state = ?, phrases = ? WHERE id = ?',
+            (state.state, state.text, chat_id)
+        )
+        self.db.commit()
+        return state
 
     def change_chat_tt(
             self,

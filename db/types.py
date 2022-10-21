@@ -68,3 +68,19 @@ class ProCollege:
         self.uid = uid
         self.login = login
         self.password = password
+
+
+class PhraseState:
+    @staticmethod
+    def from_tuple(data: Tuple[int, int, str]) -> 'PhraseState':
+        return PhraseState(*data)
+
+    def __init__(
+            self,
+            chat_id: int,
+            state: int,
+            text: str
+    ):
+        self.chat_id = chat_id
+        self.state = state
+        self.text = text
