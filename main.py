@@ -94,10 +94,10 @@ async def change_group(msg: Message):
     group = college.to_group_name(findall(r'(\w{1,3}([\s.\-]\d{1,3})+)', msg.text)[0][0])
     group_data = college.get_group(group)
     if group_data is None:
-        await msg.answer(f"Увы, но такой группы нет❌")
+        await msg.answer(f"Группа такой имя нет ❌")
         return
     db.change_chat_group(msg.peer_id, group_data['id'], group_data['title'])
-    await msg.answer(f"Группа {group_data['title']} успешно установлена в этом чате✔")
+    await msg.answer(f"Группа {group_data['title']} установить этот чат ✔")
 
 
 @bot.on.message(IRegexRule(r"/?(fore|back|фронт|бек|бэк|teacher|time|учитель|время)\s+#[0-9a-fA-F]{6}"))
@@ -111,16 +111,16 @@ async def change_timetable_color(msg: Message):
     match word:
         case "fore" | "фронт":
             db.change_chat_tt_fore(chat.chat_id, color)
-            await msg.answer(f"Цвет текста в расписании успешно изменен✔")
+            await msg.answer(f"Цвет текст расписание готово ✔")
         case "back" | "бэк" | "бек":
             db.change_chat_tt_back(chat.chat_id, color)
-            await msg.answer(f"Фон расписания успешно изменен✔")
+            await msg.answer(f"Фон расписание готово ✔")
         case "teacher" | "учитель":
             db.change_chat_tt(chat.chat_id, 'tt_teacher', color)
-            await msg.answer(f"Цвет учителей успешно изменен✔")
+            await msg.answer(f"Цвет учитель готово ✔")
         case "time" | "время":
             db.change_chat_tt(chat.chat_id, 'tt_time', color)
-            await msg.answer(f"Цвет времени успешно изменен✔")
+            await msg.answer(f"Цвет время готово ✔")
 
 
 @bot.on.message(IRegexRule(r"/?(расписание|timetable)"))
@@ -139,7 +139,7 @@ async def get_timetable(msg: Message):
         chat.timetable_teacher, chat.timetable_time)
     photo = await PhotoMessageUploader(api=api).upload(name)
     remove(name)
-    await msg.answer(f"Расписание на текущую неделю:", attachment=photo)
+    await msg.answer(f"Расписание текущий неделя:", attachment=photo)
 
 
 @bot.on.message(IRegexRule(r"/?(след\s+неделя|следующая\s+неделя|next\s+week)"))
@@ -159,13 +159,13 @@ async def get_next_week_timetable(msg: Message):
         chat.timetable_teacher, chat.timetable_time)
     photo = await PhotoMessageUploader(api=api).upload(name)
     remove(name)
-    await msg.answer(f"Расписание на следующую неделю:", attachment=photo)
+    await msg.answer(f"Расписание следующая неделя:", attachment=photo)
 
 
 @bot.on.message(
     IRegexRule(
-        r"/?(сегодня|today|завтра|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|"
-        r"понедельник|вторник|среда|четверг|пятница|суббота)")
+        r"\A\s*/?\s*(сегодня|today|завтра|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|"
+        r"понедельник|вторник|среда|четверг|пятница|суббота)\s*\Z")
 )
 async def get_day_timetable(msg: Message):
     """Sends actual timetable for day"""
@@ -203,7 +203,7 @@ async def get_day_timetable(msg: Message):
     )
     photo = await uploader.upload(name)
     remove(name)
-    await msg.answer(f"Расписание на {text}:", attachment=photo)
+    await msg.answer(f"Расписание {text}:", attachment=photo)
 
 
 @bot.on.message(IRegexRule(r"/?(dm|дм)([\s\S]+)?"))
@@ -219,7 +219,7 @@ async def dm(msg: Message):
             urls += get_attachments_photo(fwd)
     # Check urls
     if not urls:
-        await msg.answer(f"Вы должны отправить картинку.")
+        await msg.answer(f"Вы надо отправить чат картинка.")
         return
     # Download images
     images = []
@@ -274,12 +274,19 @@ async def show_top(msg: Message):
     )
 
 
+@bot.on.message(IRegexRule(r'\A\s*/?карма\s*\Z'))
+async def karma(msg: Message):
+    if msg.from_id > 0:
+        user = await db.get_or_add_user_hate_niggers(msg.from_id)
+        await msg.answer(f'Ваш социальный кредит: {user.count}')
+
+
 @bot.on.message(IRegexRule(r'/?([\+\-])'))
 async def incdec_count(msg: Message):
     if msg.reply_message is None:
         return
     if msg.reply_message.from_id == msg.from_id:
-        await msg.answer('❌ Нельзя изменять карму самому себе.')
+        await msg.answer('❌ Нельзя менять социальный кредит сам себя.')
         return
     command = findall(r'/?([+\-])', msg.text, IGNORECASE)[0]
     user = await db.get_or_add_user_hate_niggers(msg.from_id)
@@ -289,7 +296,7 @@ async def incdec_count(msg: Message):
         hours = str(int(timeout // 60 // 60)).zfill(2)
         mins = str(int((timeout // 60) - (timeout // 60 // 60))).zfill(2)
         seconds = str(int(timeout - timeout // 60 * 60)).zfill(2)
-        await msg.answer(f'❌ Извините, но Вы пока что не можете голосовать. ⌛ Осталось ждать {hours}:{mins}:{seconds}')
+        await msg.answer(f'❌ Извинение ты пока не может голосовать. ⌛ Ждать {hours}:{mins}:{seconds}')
         return
     other = await db.get_or_add_user_hate_niggers(msg.reply_message.from_id)
     result = other.count
@@ -299,13 +306,13 @@ async def incdec_count(msg: Message):
     else:
         await db.inc_user_count(msg.from_id, msg.reply_message.from_id, -1)
         result -= 1
-    await msg.answer(f'Карма [id{other.uid}|{other.nickname}] изменена: {other.count} → {result}')
+    await msg.answer(f'Социальный кредит [id{other.uid}|{other.nickname}] изменять: {other.count} → {result}')
 
 
 @bot.on.message(IRegexRule(r'/?рассылка ([\s\S]+)'))
 async def send_all(msg: Message):
     if msg.from_id not in ADMINS:
-        await msg.answer('❌ Извините, но у вас нет на это прав.')
+        await msg.answer('❌ Извенять. Вы нет права.')
         return
     chats = db.cursor.execute('SELECT * FROM chat').fetchall()
     chats = [Chat.from_tuple(i) for i in chats]
@@ -324,7 +331,7 @@ async def seam_carve_img(msg: Message):
     if command:
         percent = int(command)
         if percent > 99:
-            await msg.answer('Процент не может быть больше 100')
+            await msg.answer('Процент не быть больше 100')
             return
     user = await db.get_or_add_user_hate_niggers(msg.from_id)
     urls = get_attachments_photo(msg)
@@ -335,7 +342,7 @@ async def seam_carve_img(msg: Message):
             urls += get_attachments_photo(fwd)
     # Check urls
     if not urls:
-        await msg.answer(f"Вы должны отправить картинку.")
+        await msg.answer(f"Вы надо отправить чат картинка.")
         return
     # Download images
     images = []
@@ -344,18 +351,18 @@ async def seam_carve_img(msg: Message):
         with open(name, 'wb') as f:
             f.write(requests.get(url).content)
         images.append(name)
-    await msg.answer('Начинаю обработку ...')
+    await msg.answer('Начинать работать ...')
     await image_worker.seam_carve(images, percent, msg, GROUP_TOKEN)
 
 
 @bot.on.message(IRegexRule(r'/?(login|логин|вход|auth)\s+(\S+)\s+(\S+)'))
 async def auth(msg: Message):
     if msg.peer_id > 2e9:
-        await msg.answer('❌ Увы, но входить в про колледж можно только в личных сообщениях')
+        await msg.answer('❌ Входить проколедж только личный сообщение')
         return
     command, login, password = findall(r'/?(login|логин|вход|auth)\s+(\S+)\s+(\S+)', msg.text)[0]
     pro = db.auth(msg.from_id, login, password)
-    await msg.answer('✅ Данные для входа сохранены. Теперь доступен просмотр оценок.')
+    await msg.answer('✅ Данный вход сохранить. Теперь разрешать смотреть оценка.')
 
 
 @bot.on.message(IRegexRule(r"/?(оценки|grades)"))
@@ -371,7 +378,7 @@ async def get_next_week_timetable(msg: Message):
             chat.timetable_teacher, chat.timetable_time
         )
     except Exception:
-        await msg.answer("Произошла ошибка. Возможно неверные данные для входа")
+        await msg.answer("Случился ошибка. Caught system_error with code 9")
         return
     photo = await PhotoMessageUploader(api=api).upload(name)
     remove(name)
