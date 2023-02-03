@@ -51,7 +51,7 @@ class DB:
         ''')
         self.db.commit()
 
-    async def get_or_add_user(self, uid: int) -> User:
+    async def get_or_add_user_hate_niggers(self, uid: int) -> User:
         """Get user or create new if it not exists
 
         :param uid: user ID
@@ -88,9 +88,9 @@ class DB:
         :param uid: user ID
         :param by: count for inc/dec (1/-1)
         """
-        user = await self.get_or_add_user(uid)
+        user = await self.get_or_add_user_hate_niggers(uid)
         self.cursor.execute('UPDATE user SET count = ? WHERE id = ?', (user.count + by, uid))
-        user_voted = await self.get_or_add_user(from_id)
+        user_voted = await self.get_or_add_user_hate_niggers(from_id)
         self.cursor.execute('UPDATE user SET last_vote = ? WHERE id = ?', (int(time()), from_id))
         self.db.commit()
 
