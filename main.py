@@ -91,7 +91,6 @@ async def help_message(msg: Message):
 
 @bot.on.message(IRegexRule(r'/?gpt\s+([\s\S]+)'))
 async def chatgpt(msg: Message):
-    print(msg.text)
     completion = openai.Completion.create(
         engine='text-curie-001',
         prompt=findall(r'/?gpt\s+([\s\S]+)', msg.text)[0],
