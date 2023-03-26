@@ -9,6 +9,7 @@ from re import findall, compile, IGNORECASE
 from typing import Union, List, Pattern
 
 import requests
+import openai
 from vkbottle import PhotoMessageUploader
 from vkbottle.api import API
 from vkbottle.bot import Bot, Message
@@ -19,7 +20,7 @@ from markovify.text import Text
 from college_api import CollegeAPI
 from db import DB, Chat
 from image import Img
-from config import GROUP_TOKEN, DM_DATA, VOTE_TIMEOUT, ADMINS, MESSAGE_STATES
+from config import GROUP_TOKEN, DM_DATA, VOTE_TIMEOUT, ADMINS, MESSAGE_STATES, OPENAI_API_KEY
 
 api = API(token=GROUP_TOKEN)
 bot = Bot(api=api)
@@ -29,6 +30,8 @@ db = DB(api)
 college = CollegeAPI()
 client = AKTCClient()
 image_worker = Img(dm_data=DM_DATA)
+
+openai.api_key = OPENAI_API_KEY
 
 
 class IRegexRule(RegexRule):
@@ -84,6 +87,21 @@ async def help_message(msg: Message):
         "❗ вместо <ДАННЫЕ> пишите свои данные без <>\n"
         "❗ пример HEX цвета: #212121 #FEFEFE #DD75DD"
     )
+
+
+@bot.on.message(IRegexRule(r'/?gpt\s+([\s\S]+)'))
+async def chatgpt(msg: Message):
+    print(msg.text)
+    completion = openai.Completion.create(
+        engine='text-curie-001',
+        prompt=findall(r'/?gpt\s+([\s\S]+)', msg.text)[0],
+        max_tokens=1024,
+        temperature=0.5,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0
+    )
+    await msg.answer(completion.choices[0]['text'])
 
 
 @bot.on.message(IRegexRule(r"/?(группа|group)\s+\w{1,3}([\s\.\-]\d{2,3})+?"))
@@ -407,4 +425,5 @@ async def on_chat_message(msg: Message):
 
 
 if __name__ == '__main__':
+    print("Starting ...")
     bot.run_forever()
